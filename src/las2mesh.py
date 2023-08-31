@@ -53,7 +53,7 @@ def create_mesh(point_cloud, mesh_depth):
     point_cloud.orient_normals_to_align_with_direction(orientation_reference=np.array([0., 0., 1.]))
 
     # メッシュ化
-    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
+    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug):
         poisson_mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
             point_cloud, depth=mesh_depth)
     print(poisson_mesh)
