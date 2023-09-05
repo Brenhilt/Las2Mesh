@@ -1,7 +1,8 @@
 from argparse import ArgumentParser
-import os
+from os import remove
+from os.path import splitext
 
-import laspy
+from laspy import read as read_las
 from numpy import amax, amin, array, empty, full
 from numpy import vstack
 from numpy import column_stack as cstack
@@ -21,11 +22,22 @@ from pygltflib.utils import gltf2glb
 
 
 VERSION = "Las2Mesh v0.3b"
+WRITE_OPT = dict(
+    write_ascii=False,
+    write_vertex_normals=True
+)
+
+
+# display help if no option
+class ArgumentParserDH(ArgumentParser):
+    def error(self, message):
+        self.print_help()
+        exit()
 
 
 # lasファイルから点群を追加する
 def add_points(filename, points, colors):
-    las = laspy.read(filename)
+    las = read_las(filename)
     scales = las.header.scales
     pe2 = [las.points.X * scales[0],
            las.points.Y * scales[1],
@@ -54,11 +66,11 @@ def load_files(files):
         print(f"{filename} => {len(vec)} points(total)")
 
     # 端が原点となるように移動
-    min = amin(vec, axis=0)
-    max = amax(vec, axis=0)
-    vec = vec - min
-    bbox = max - min
-    print(f"size: {bbox[0]:.1f} x {bbox[1]:.1f} x {bbox[2]:.1f} (m)")
+    p_min = amin(vec, axis=0)
+    p_max = amax(vec, axis=0)
+    vec = vec - p_min
+    box = p_max - p_min
+    print(f"size: {box[0]:.1f} x {box[1]:.1f} x {box[2]:.1f} (m)")
     pcd = PointCloud()
     pcd.points = Vector3dVector(vec)
     pcd.colors = Vector3dVector(col)
@@ -66,23 +78,23 @@ def load_files(files):
 
 
 # 点群からメッシュを生成
-def create_mesh(point_cloud, mesh_depth):
+def create_mesh(points, depth):
     # 法線の推定
-    point_cloud.estimate_normals(search_param=KDTreeSearchParamKNN(knn=20))
+    points.estimate_normals(search_param=KDTreeSearchParamKNN(knn=20))
 
     # Upの軸を指定する
-    point_cloud.orient_normals_to_align_with_direction(
+    points.orient_normals_to_align_with_direction(
         orientation_reference=array([0., 0., 1.])
     )
 
     # メッシュ化
     with VerbosityContextManager(VerbosityLevel.Debug):
-        poisson_mesh, densities = TriangleMesh.create_from_point_cloud_poisson(
-            point_cloud, depth=mesh_depth)
-    print(poisson_mesh)
+        poisson, dens = TriangleMesh.create_from_point_cloud_poisson(
+            points, depth=depth)
+    print(poisson)
 
-    bbox = point_cloud.get_axis_aligned_bounding_box()
-    mesh = poisson_mesh.crop(bbox)
+    box = points.get_axis_aligned_bounding_box()
+    mesh = poisson.crop(box)
 
     # メッシュの軽量化
     # decimation_ratio = 0.5
@@ -91,52 +103,50 @@ def create_mesh(point_cloud, mesh_depth):
     return mesh
 
 
-def write_mesh(filename, mesh):
-    opt = dict(write_ascii=False, write_vertex_normals=True)
-    body, ext = os.path.splitext(filename)
+def write_mesh(dst, mesh, override=True, write_opt=WRITE_OPT):
+    path, ext = splitext(dst)
     if ext == ".glb":
-        gltf_file = body + ".gltf"
-        write_triangle_mesh(gltf_file, mesh, **opt)
-        gltf2glb(gltf_file, override=True)
-        os.remove(gltf_file)
+        gltf = f"{path}.gltf"
+        write_triangle_mesh(gltf, mesh, **write_opt)
+        gltf2glb(gltf, override=override)
+        remove(gltf)
     else:
-        write_triangle_mesh(filename, mesh, **opt)
+        write_triangle_mesh(dst, mesh, **write_opt)
 
 
-def main():
-    print(VERSION)
-    parser = ArgumentParser(description=".lasファイルからメッシュを生成します")
-    parser.add_argument('files', nargs='*',
+def option_parse():
+    parser = ArgumentParserDH(description=".lasファイルからメッシュを生成します")
+    parser.add_argument('files', nargs="+",
                         help="対象の .lasファイル。複数指定できます。")
     parser.add_argument('-d', '--depth', default=10, type=int,
                         help=("メッシュの細かさを整数で指定します。"
                               "デフォルト値は 10 です。"))
     parser.add_argument('-o', '--output', default='output.ply',
                         help=("出力ファイル名を指定します。"
-                              "デフォルト値は output.ply です。出力形式は、"
-                              ".ply, .stl, .obj, .off, .gltf"
-                              " に対応しています。"))
+                              "デフォルト値は output.ply です。"
+                              "出力形式は、.ply, .stl, .obj, .off, .gltf に対応しています。"))
     parser.add_argument('-n', '--nopreview', action='store_true',
                         help="3Dプレビュー表示を無効にします")
-    args = parser.parse_args()
+    options = parser.parse_args()
+    return options
 
-    if len(args.files) == 0:
-        parser.print_help()
-        return
 
-    pcd = load_files(args.files)
-    output_path = args.output
-    depth = args.depth
+def main():
+    print(VERSION)
+    options = option_parse()
+
+    pcd = load_files(options.files)
+    output = options.output
+    depth = options.depth
 
     mesh = create_mesh(pcd, depth)
-    write_mesh(output_path, mesh)
+    write_mesh(output, mesh)
 
-    if not args.nopreview:
+    if not options.nopreview:
         # from open3d.visualization import draw,
         # draw(mesh) # 詳細設定用
         # 画面表示
-        wname = f"{VERSION} - {output_path} (preview)"
-        draw_geometries([mesh], window_name=wname)
+        draw_geometries([mesh], window_name=f"{VERSION} - {output} (preview)")
         # 操作方法:
         # http://www.open3d.org/docs/latest/tutorial/Basic/visualization.html
 
