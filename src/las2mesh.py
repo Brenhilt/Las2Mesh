@@ -30,10 +30,10 @@ def load_files(files):
         print(filename + " => " + str(len(vec)) + " points(total)")
 
     # 端が原点となるように移動
-    min = np.amin(vec, axis=0)
-    max = np.amax(vec, axis=0)
-    vec = vec - min
-    bbox = max-min
+    p_min = np.amin(vec, axis=0)
+    p_max = np.amax(vec, axis=0)
+    vec = vec - p_min
+    bbox = p_max - p_min
     print(f"size: {bbox[0]:.1f} x {bbox[1]:.1f} x {bbox[2]:.1f} (m)")
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(vec)
