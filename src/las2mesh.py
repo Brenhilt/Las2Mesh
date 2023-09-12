@@ -28,7 +28,7 @@ WRITE_OPT = dict(
 )
 
 
-# display help if no option
+# Display Help if no option
 class ArgumentParserDH(ArgumentParser):
     def error(self, message):
         self.print_help()
