@@ -3,8 +3,7 @@ from os import remove
 from os.path import splitext
 
 from laspy import read as read_las
-from numpy import amax, amin, array, empty, full
-from numpy import vstack
+from numpy import amax, amin, array, empty, full, vstack
 from numpy import column_stack as cstack
 from open3d.io import write_triangle_mesh
 from open3d.geometry import (
