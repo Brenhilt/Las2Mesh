@@ -5,6 +5,7 @@
 
 # {{{ modules loading
 from argparse import ArgumentParser
+from pathlib import Path
 from os import remove
 from os.path import splitext
 
@@ -42,7 +43,7 @@ class ArgumentParserDH(ArgumentParser):
         exit()
 
 
-def draw_geodata(datas, window_name):
+def preview(datas, window_name):
     # from open3d.visualization import draw,
     # draw(mesh) # 詳細設定用
     # 画面表示
@@ -50,27 +51,6 @@ def draw_geodata(datas, window_name):
     # 操作方法
     # http://www.open3d.org/docs/latest/tutorial/Basic/visualization.html
     return None
-
-
-# lasファイルから点群を追加する
-def add_points(filename, points, colors):
-    las = read_las(filename)
-    scales = las.header.scales
-    pe2 = [las.points.X * scales[0],
-           las.points.Y * scales[1],
-           las.points.Z * scales[2]]
-    points = vstack([points, cstack(pe2)])
-    if hasattr(las.points, 'red'):
-        # カラーあり
-        ce2 = [las.points.red,
-               las.points.green,
-               las.points.blue]
-        colors = vstack([colors, cstack(ce2) / 65535.])
-    else:
-        # カラーなし(グレー表示)
-        ge2 = [full((len(las.X), 3), 0.5)]
-        colors = vstack([colors, cstack(ge2)])
-    return points, colors
 
 
 # 点群からメッシュを生成
@@ -100,14 +80,35 @@ def create_mesh(points, depth):
 
 
 def write_mesh(dst, mesh, override=True, write_opt=WRITE_OPT):
-    path, ext = splitext(dst)
-    if ext == ".glb":
-        gltf = f"{path}.gltf"
-        write_triangle_mesh(gltf, mesh, **write_opt)
+    path = Path(dst)
+    if path.suffix == ".glb":
+        gltf = path.with_suffix(".gltf")
+        write_triangle_mesh(str(gltf), mesh, **write_opt)
         gltf2glb(gltf, override=override)
-        remove(gltf)
+        gltf.unlink()
     else:
         write_triangle_mesh(dst, mesh, **write_opt)
+
+
+# lasファイルから点群を追加する
+def add_points(filename, points, colors):
+    las = read_las(filename)
+    scales = las.header.scales
+    pe2 = [las.points.X * scales[0],
+           las.points.Y * scales[1],
+           las.points.Z * scales[2]]
+    points = vstack([points, cstack(pe2)])
+    if hasattr(las.points, 'red'):
+        # カラーあり
+        ce2 = [las.points.red,
+               las.points.green,
+               las.points.blue]
+        colors = vstack([colors, cstack(ce2) / 65535.])
+    else:
+        # カラーなし(グレー表示)
+        ge2 = [full((len(las.X), 3), 0.5)]
+        colors = vstack([colors, cstack(ge2)])
+    return points, colors
 
 
 # 複数の .lasファイルを読み込み1つの点群にする

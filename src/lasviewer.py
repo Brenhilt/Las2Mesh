@@ -1,4 +1,4 @@
-from .common import ArgumentParserDH, load_files, draw_geodata
+from common import ArgumentParserDH, load_files, preview
 
 
 VERSION = "LasViewer v1.0 based on Las2Mesh"
@@ -16,7 +16,7 @@ def main():
     print(VERSION)
     options = option_parse()
     pcd = load_files(options.files)
-    draw_geodata([pcd], VERSION)
+    preview(pcd, VERSION)
 
 
 if __name__ == '__main__':

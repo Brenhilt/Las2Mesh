@@ -1,5 +1,5 @@
-from .common import (
-    ArgumentParserDH, load_files, draw_geodata,
+from common import (
+    ArgumentParserDH, load_files, preview,
     create_mesh, write_mesh,
 )
 
@@ -18,7 +18,7 @@ def option_parse():
                         help=("出力ファイル名を指定します。"
                               "デフォルト値は output.ply です。"
                               "出力形式は、.ply, .stl, .obj, .off, .gltf に対応しています。"))
-    parser.add_argument('-n', '--nopreview', action='store_true',
+    parser.add_argument('-n', '--nopreview', action="store_true",
                         help="3Dプレビュー表示を無効にします")
     options = parser.parse_args()
     return options
@@ -27,17 +27,15 @@ def option_parse():
 def main():
     print(VERSION)
     options = option_parse()
-
     pcd = load_files(options.files)
     output = options.output
     depth = options.depth
-
     mesh = create_mesh(pcd, depth)
     write_mesh(output, mesh)
 
     if not options.nopreview:
         window_name = f"{VERSION} - {output} (preview)"
-        draw_geodata([mesh], window_name)
+        preview(mesh, window_name)
 
 
 if __name__ == '__main__':
